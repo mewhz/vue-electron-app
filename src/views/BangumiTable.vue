@@ -70,18 +70,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
-import { useRouter } from 'vue-router'
 import BangumiToolbar from '@/components/BangumiToolbar.vue'
 import type { BangumiItem } from '@/api/types'
 
-const router = useRouter()
 const bangumiList = ref<BangumiItem[]>([])
-
-// 切换视图
-const switchView = () => {
-  router.push('/bangumi/card')
-}
 
 // 获取番剧数据
 const fetchBangumiData = async () => {

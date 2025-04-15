@@ -13,6 +13,7 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Refresh, Switch } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -27,9 +28,26 @@ const { switchButtonText, targetPath } = computed(() => {
 }).value
 
 // 刷新数据
-const handleRefresh = () => {
-  // window.electronAPI.getBangumi()
-  window.electronAPI.downloadBangumiData();
+const handleRefresh = async () => {
+  
+  const result = await window.electronAPI.downloadBangumiData();
+
+  if (result.success) {
+    
+    ElMessage({
+      message: '更新成功, 稍后自动刷新',
+      type: 'success',
+      duration: 2000
+    })
+
+    setTimeout(() => {
+      location.reload();
+    }, 2000);
+    
+  } else {
+    ElMessage.error('更新数据出错：' + result.error)
+  }
+
 }
 
 // 切换视图

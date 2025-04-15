@@ -19,8 +19,7 @@ function createWindow() {
     mainWindow.setMenuBarVisibility(false);
     // 最大化窗口
     mainWindow.maximize();
-    // mainWindow.loadURL('http://localhost:5173');
-    mainWindow.loadURL('http://localhost:5173/bangumi/table');
+    mainWindow.loadURL('http://localhost:5173');
 
     // 自动打开开发者工具
     mainWindow.webContents.openDevTools();

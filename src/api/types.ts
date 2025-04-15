@@ -20,7 +20,7 @@ declare global {
   interface Window {
     electronAPI: {
       getBangumi: () => Promise<ApiResponse<BangumiItem[]>>,
-      downloadBangumiData: () => Promise<[]>
+      downloadBangumiData: () => Promise<ApiResponse>
     }
   }
 }
