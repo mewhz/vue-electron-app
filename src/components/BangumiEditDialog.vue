@@ -41,6 +41,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { BangumiItem } from '@/api/types'
+import { ElMessage } from 'element-plus'
 
 const props = defineProps<{
   modelValue: boolean
@@ -79,9 +80,20 @@ const handleClose = () => {
   dialogVisible.value = false
 }
 
-const handleSave = () => {
-  emit('save', form.value)
-  handleClose()
+const handleSave = async () => {
+  try {
+    const result = await window.electronAPI.saveBangumi(JSON.parse(JSON.stringify(form.value)))
+    if (result.success) {
+      ElMessage.success('保存成功')
+      emit('save', form.value)
+      handleClose()
+    } else {
+      ElMessage.error(`保存失败: ${result.error || '未知错误'}`)
+    }
+  } catch (error) {
+    console.error('Save failed:', error)
+    ElMessage.error('保存失败')
+  }
 }
 
 const addLabel = () => {

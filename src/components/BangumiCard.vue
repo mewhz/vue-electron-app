@@ -28,11 +28,12 @@
         <h3 class="title">{{ bangumi.name }}</h3>
       </el-tooltip>
       <el-tooltip
-        :content="bangumi.nameCN || bangumi.name"
+        v-if="bangumi.nameCN"
+        :content="bangumi.nameCN"
         placement="top"
         :show-after="500"
       >
-        <h3 class="title">{{ bangumi.nameCN || bangumi.name }}</h3>
+        <h3 class="title">{{ bangumi.nameCN}}</h3>
       </el-tooltip>
       <el-tooltip 
         :content="bangumi.summary" 
@@ -156,6 +157,7 @@ const handleEdit = () => {
 .labels {
   display: flex;
   gap: 6px;
+  flex-flow: wrap;
 }
 
 .actions {

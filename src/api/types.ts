@@ -1,6 +1,6 @@
 export interface BangumiItem {
   name: string
-  nameCN: string
+  nameCN?: string
   summary: string
   cover: string
   url: string
@@ -20,7 +20,10 @@ declare global {
   interface Window {
     electronAPI: {
       getBangumi: () => Promise<ApiResponse<BangumiItem[]>>,
-      downloadBangumiData: () => Promise<ApiResponse>
+      downloadBangumiData: () => Promise<ApiResponse>,
+      saveBangumi: (data: BangumiItem) => Promise<ApiResponse>,
+      onDownloadProgress: (callback: (progress: number) => void) => void,
+      removeDownloadProgress: () => void
     }
   }
 }
