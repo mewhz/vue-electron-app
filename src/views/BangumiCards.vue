@@ -1,10 +1,10 @@
 <template>
   <div class="bangumi-container">
-    <BangumiToolbar />
+    <BangumiToolbar @add="handleAdd" />
     <el-row :gutter="16">
       <el-col 
         v-for="item in bangumiList" 
-        :key="item.name" 
+        :key="item.id" 
         :xs="24" 
         :sm="12" 
         :md="8" 
@@ -21,6 +21,7 @@
     <BangumiEditDialog
       v-model="dialogVisible"
       :bangumi="currentBangumi"
+      @save-success="handleSaveSuccess"
     />
   </div>
 </template>
@@ -35,7 +36,7 @@ import type { BangumiItem } from '@/api/types'
 
 const bangumiList = ref<BangumiItem[]>([])
 const dialogVisible = ref(false)
-const currentBangumi = ref<BangumiItem>()
+const currentBangumi = ref<BangumiItem | null>(null)
 
 // 初始化加载数据
 const loadBangumiData = async () => {
@@ -60,6 +61,16 @@ onMounted(() => {
 const handleEdit = (bangumi: BangumiItem) => {
   currentBangumi.value = bangumi
   dialogVisible.value = true
+}
+
+const handleAdd = () => {
+  currentBangumi.value = null
+  dialogVisible.value = true
+}
+
+const handleSaveSuccess = () => {
+  dialogVisible.value = false
+  loadBangumiData()
 }
 </script>
 

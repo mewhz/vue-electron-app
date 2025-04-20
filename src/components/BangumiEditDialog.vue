@@ -1,14 +1,18 @@
 <template>
   <el-dialog
     v-model="dialogVisible"
-    title="编辑番剧信息"
+    :title="isEditMode ? '编辑番剧信息' : '添加新番剧'"
     width="50%"
     :before-close="handleClose"
+    @open="onDialogOpen"
   >
     <el-scrollbar height="60vh">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="名称">
-          <el-input v-model="form.name" />
+      <el-form :model="form" label-width="80px" ref="formRef">
+        <el-form-item label="名称" prop="name">
+          <el-input v-model="form.name"/>
+        </el-form-item>
+        <el-form-item label="中文名">
+          <el-input v-model="form.nameCN" />
         </el-form-item>
         <el-form-item label="简介">
           <el-input v-model="form.summary" type="textarea" :rows="3" />
@@ -16,7 +20,7 @@
         <el-form-item label="封面">
           <el-input v-model="form.cover" />
         </el-form-item>
-        <el-form-item label="链接">
+        <el-form-item label="详情页">
           <el-input v-model="form.url" />
         </el-form-item>
         <el-form-item label="标签" class="labels-container">
@@ -32,30 +36,37 @@
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSave">保存</el-button>
+        <el-button type="primary" @click="handleSave" :loading="isSaving">保存</el-button>
       </span>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import type { FormInstance } from 'element-plus'
 import type { BangumiItem } from '@/api/types'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps<{
   modelValue: boolean
-  bangumi?: BangumiItem
+  bangumi?: BangumiItem | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
-  (e: 'save', bangumi: BangumiItem): void
+  (e: 'save-success', bangumi: BangumiItem): void
 }>()
 
 const dialogVisible = ref(props.modelValue)
+const formRef = ref<FormInstance>()
+const isSaving = ref(false)
+
+const isEditMode = computed(() => !!(props.bangumi && props.bangumi.name))
+
 const form = ref<BangumiItem>({
   name: '',
+  nameCN: '',
   summary: '',
   cover: '',
   url: '',
@@ -66,42 +77,84 @@ watch(() => props.modelValue, (val) => {
   dialogVisible.value = val
 })
 
-watch(() => props.bangumi, (val) => {
-  if (val) {
-    form.value = JSON.parse(JSON.stringify(val))
-  }
-}, { immediate: true })
-
 watch(dialogVisible, (val) => {
   emit('update:modelValue', val)
 })
+
+const onDialogOpen = () => {
+  if (props.bangumi && props.bangumi.name) {
+    console.log('对话框打开：编辑模式', props.bangumi)
+    form.value = JSON.parse(JSON.stringify(props.bangumi))
+  } else {
+    console.log('对话框打开：添加模式')
+    form.value = {
+      name: '',
+      nameCN: '',
+      summary: '',
+      cover: '',
+      url: '',
+      labels: []
+    }
+    formRef.value?.clearValidate()
+  }
+}
 
 const handleClose = () => {
   dialogVisible.value = false
 }
 
 const handleSave = async () => {
+  if (!formRef.value) return
   try {
-    const result = await window.electronAPI.saveBangumi(JSON.parse(JSON.stringify(form.value)))
+    await formRef.value.validate()
+  } catch (error) {
+    console.log('表单校验失败', error)
+    ElMessage.warning('请检查表单输入项')
+    return
+  }
+
+  isSaving.value = true
+  try {
+    let result
+    const formData = JSON.parse(JSON.stringify(form.value))
+
+    if (isEditMode.value) {
+      console.log('执行更新操作...', formData)
+      result = await window.electronAPI.saveBangumi(formData)
+    } else {
+      console.log('执行添加操作...', formData)
+      result = await window.electronAPI.addBangumi(formData)
+      if (result.success && result.lastID) {
+        formData.id = result.lastID
+      }
+    }
+
     if (result.success) {
-      ElMessage.success('保存成功')
-      emit('save', form.value)
+      ElMessage.success(isEditMode.value ? '更新成功' : '添加成功')
+      emit('save-success', formData)
       handleClose()
     } else {
-      ElMessage.error(`保存失败: ${result.error || '未知错误'}`)
+      ElMessage.error(`${isEditMode.value ? '更新' : '添加'}失败: ${result.error || '未知错误'}`)
     }
-  } catch (error) {
-    console.error('Save failed:', error)
-    ElMessage.error('保存失败')
+  } catch (error: any) {
+    console.error('保存操作失败:', error)
+    ElMessage.error(`${isEditMode.value ? '更新' : '添加'}时出错: ${error.message}`)
+  } finally {
+    isSaving.value = false
   }
 }
 
 const addLabel = () => {
+  if (!form.value.labels) {
+    form.value.labels = []
+  }
   form.value.labels.push({ label: '', value: '' })
 }
 
 const removeLabel = (index: number) => {
-  form.value.labels.splice(index, 1)
+  if (form.value.labels) {
+    form.value.labels.splice(index, 1)
+  }
 }
 </script>
 

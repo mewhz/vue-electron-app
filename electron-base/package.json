@@ -9,13 +9,16 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "packageManager": "pnpm@10.7.1",
   "devDependencies": {
     "electron": "^35.0.2",
     "electron-builder": "^25.1.8"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "electron"
+      "better-sqlite3",
+      "electron",
+      "sqlite3"
     ]
   },
   "build": {
@@ -37,5 +40,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
   }
 }

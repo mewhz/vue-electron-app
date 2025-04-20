@@ -8,6 +8,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getBangumi: () => ipcRenderer.invoke('get-bangumi'),
     downloadBangumiData: () => ipcRenderer.invoke('download-bangumi-data'),
     saveBangumi: (data) => ipcRenderer.invoke('save-bangumi', data),
+    // 新增：添加番剧
+    addBangumi: (data) => ipcRenderer.invoke('add-bangumi', data),
+    // 新增：获取配置文件的路径
+    getConfigFilePath: () => ipcRenderer.invoke('get-config-file-path'),
+    // 新增：导出 Bangumi 数据为 JSON
+    exportBangumiJson: () => ipcRenderer.invoke('export-bangumi-json'),
     // 添加进度监听
     onDownloadProgress: (callback) => {
         // 移除之前的监听器
