@@ -6,7 +6,7 @@
     :before-close="handleClose"
     @open="onDialogOpen"
   >
-    <el-scrollbar height="55vh">
+    <el-scrollbar height="60vh">
       <el-form :model="form" label-width="80px" ref="formRef">
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name"/>

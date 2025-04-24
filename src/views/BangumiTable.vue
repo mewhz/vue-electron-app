@@ -14,7 +14,9 @@
                 <template #default="{ row }">
                     <el-popover placement="right" trigger="hover" popper-class="cover-popover">
                         <template #reference>
-                            <span class="name">{{ row.name }}</span>
+                            <span class="name" @click="handleEditBangumi(row)" style="cursor: pointer;">
+                                {{ row.name }}
+                            </span>
                         </template>
                         <el-image :src="row.cover" fit="cover" style="width: 300px; height: 450px" />
                     </el-popover>
@@ -198,6 +200,13 @@ const handleSortByTime = async () => {
 const handleAddBangumi = () => {
   selectedBangumi.value = null // 设置为 null 进入添加模式
   isDialogVisible.value = true // 打开对话框
+}
+
+// 新增：处理编辑番剧点击事件
+const handleEditBangumi = (bangumi: BangumiItem) => {
+  console.log('编辑番剧:', bangumi);
+  selectedBangumi.value = bangumi; // 设置要编辑的数据
+  isDialogVisible.value = true;    // 打开对话框
 }
 
 // 处理保存成功事件 (添加或编辑后)

@@ -1,6 +1,6 @@
 <template>
   <div class="bangumi-container">
-    <BangumiToolbar @add="handleAdd" />
+    <BangumiToolbar @add="handleAdd" @sort-by-time="handleSortByTime" />
     <el-row :gutter="16">
       <el-col 
         v-for="item in bangumiList" 
@@ -39,7 +39,7 @@ const dialogVisible = ref(false)
 const currentBangumi = ref<BangumiItem | null>(null)
 
 // 初始化加载数据
-const loadBangumiData = async () => {
+const fetchBangumiData = async () => {
   try {
     const result = await window.electronAPI.getBangumi()
     if (result.success && result.data) {
@@ -55,7 +55,7 @@ const loadBangumiData = async () => {
 }
 
 onMounted(() => {
-  loadBangumiData()
+  fetchBangumiData()
 })
 
 const handleEdit = (bangumi: BangumiItem) => {
@@ -70,7 +70,67 @@ const handleAdd = () => {
 
 const handleSaveSuccess = () => {
   dialogVisible.value = false
-  loadBangumiData()
+  fetchBangumiData()
+}
+
+// 新增：按时间排序处理函数
+const handleSortByTime = async () => {
+  // 1. 前端排序逻辑 (与 Table 视图相同)
+  bangumiList.value.sort((a, b) => {
+    const timeLabelA = a.labels.find(l => l.label === '时间')?.value
+    const timeLabelB = b.labels.find(l => l.label === '时间')?.value
+
+    const parseDate = (dateStr: string | undefined): number => {
+      if (!dateStr) return 0
+      let match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+      if (match) {
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3])).getTime()
+      }
+      match = dateStr.match(/^(\d{4})-(\d{2})$/)
+      if (match) {
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, 1).getTime()
+      }
+      const timestamp = Date.parse(dateStr)
+      if (!isNaN(timestamp)) {
+        return timestamp
+      }
+      return 0
+    }
+
+    const timeA = parseDate(timeLabelA)
+    const timeB = parseDate(timeLabelB)
+
+    if (timeA === 0 && timeB === 0) {
+      return (a.id ?? 0) - (b.id ?? 0);
+    }
+    if (timeA === 0) return 1
+    if (timeB === 0) return -1
+    return timeB - timeA // 降序
+  });
+
+  // 2. 提取排序后的 ID 列表
+  const sortedIds = bangumiList.value
+    .map(item => item.id)
+    .filter((id): id is number => id !== undefined && id !== null);
+
+  if (sortedIds.length !== bangumiList.value.length) {
+    console.warn('部分番剧缺少 ID，无法为所有项更新排序顺序。');
+  }
+
+  // 3. 调用后端 API 更新排序
+  try {
+    console.log('尝试更新数据库中的排序顺序...', sortedIds);
+    const result = await window.electronAPI.updateBangumiOrder(sortedIds);
+    if (result.success) {
+      ElMessage.success('已按时间排序并更新数据库顺序');
+    } else {
+      console.error('更新数据库排序失败:', result.error);
+      ElMessage.error(`更新数据库排序失败: ${result.error || '未知错误'}`);
+    }
+  } catch (error: any) {
+    console.error('调用 updateBangumiOrder 时出错:', error);
+    ElMessage.error(`调用排序 API 时出错: ${error.message}`);
+  }
 }
 </script>
 
