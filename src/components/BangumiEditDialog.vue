@@ -6,7 +6,7 @@
     :before-close="handleClose"
     @open="onDialogOpen"
   >
-    <el-scrollbar height="60vh">
+    <el-scrollbar height="55vh">
       <el-form :model="form" label-width="80px" ref="formRef">
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name"/>
@@ -23,13 +23,15 @@
         <el-form-item label="详情页">
           <el-input v-model="form.url" />
         </el-form-item>
-        <el-form-item label="标签" class="labels-container">
-          <div v-for="(label, index) in form.labels" :key="index" class="label-item">
-            <el-input v-model="label.label" placeholder="标签名" class="label-input" />
-            <el-input v-model="label.value" placeholder="标签值" class="label-input" />
-            <el-button type="danger" @click="removeLabel(index)">删除</el-button>
+        <el-form-item label="标签" class="labels-form-item">
+          <div class="labels-container">
+            <div v-for="(label, index) in form.labels" :key="index" class="label-item">
+              <el-input v-model="label.label" placeholder="标签名" class="label-input label-name-input" />
+              <el-input v-model="label.value" placeholder="标签值" class="label-input label-value-input" />
+              <el-button type="danger" @click="removeLabel(index)" :icon="Delete" circle />
+            </div>
+            <el-button type="primary" @click="addLabel" class="add-label-button">添加标签</el-button>
           </div>
-          <el-button type="primary" @click="addLabel">添加标签</el-button>
         </el-form-item>
       </el-form>
     </el-scrollbar>
@@ -44,6 +46,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
 import type { FormInstance } from 'element-plus'
 import type { BangumiItem } from '@/api/types'
 import { ElMessage } from 'element-plus'
@@ -159,21 +162,32 @@ const removeLabel = (index: number) => {
 </script>
 
 <style scoped>
-.label-item {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.label-input {
-  width: calc(50% - 50px);
-  min-width: 120px;
+.labels-form-item :deep(.el-form-item__content) {
+  display: block;
 }
 
 .labels-container {
-  max-height: 300px;
-  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.label-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.label-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.add-label-button {
+  margin-bottom: 5px;
 }
 
 :deep(.el-dialog__body) {

@@ -1,6 +1,6 @@
 <template>
     <div class="bangumi-container">
-        <BangumiToolbar @sort-by-time="handleSortByTime" />
+        <BangumiToolbar @sort-by-time="handleSortByTime" @add="handleAddBangumi" />
         <el-table :data="bangumiList" style="width: 100%" stripe border>
             <!-- 中文标题列 -->
             <el-table-column label="中文标题" min-width="150">
@@ -10,7 +10,7 @@
             </el-table-column>
 
             <!-- 日文标题列 -->
-            <el-table-column label="原标题" min-width="150">
+            <el-table-column label="原标题" min-width="130">
                 <template #default="{ row }">
                     <el-popover placement="right" trigger="hover" popper-class="cover-popover">
                         <template #reference>
@@ -28,52 +28,44 @@
                 </template>
             </el-table-column>
 
-            <!-- 集数列 -->
-            <el-table-column label="集数" width="80" align="center">
+            <!-- 动态生成的标签列 -->
+            <el-table-column 
+                v-for="labelKey in dynamicColumns" 
+                :key="labelKey" 
+                :label="labelKey" 
+                width="110" 
+                align="center"
+            >
                 <template #default="{ row }">
-                    <span class="episode">
-                        {{row.labels.find((l: any) => l.label.includes('话'))?.label || '-'}}
-                    </span>
-                </template>
-            </el-table-column>
-
-            <!-- 评分列 -->
-            <el-table-column label="评分" width="80" align="center">
-                <template #default="{ row }">
-                    <span class="rating">
-                        {{row.labels.find((l: any) => l.label === '评分')?.value || '-'}}
-                    </span>
-                </template>
-            </el-table-column>
-
-            <!-- 排名列 -->
-            <el-table-column label="排名" width="80" align="center">
-                <template #default="{ row }">
-                    <span class="rank">
-                        {{row.labels.find((l: any) => l.label === '排名')?.value || '-'}}
-                    </span>
-                </template>
-            </el-table-column>
-
-            <!-- 放送时间列 -->
-            <el-table-column label="放送时间" width="100" align="center">
-                <template #default="{ row }">
-                    <span class="air-date">
-                        {{row.labels.find((l: any) => l.label === '时间')?.value || '-'}}
+                    <span>
+                        {{ getLabelValue(row.labels, labelKey) }}
                     </span>
                 </template>
             </el-table-column>
         </el-table>
+        <BangumiEditDialog 
+            v-model="isDialogVisible"
+            :bangumi="selectedBangumi" 
+            @save-success="handleSaveSuccess"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import BangumiToolbar from '@/components/BangumiToolbar.vue'
+import BangumiEditDialog from '@/components/BangumiEditDialog.vue'
 import type { BangumiItem } from '@/api/types'
 
 const bangumiList = ref<BangumiItem[]>([])
+// 用于存储动态列名的响应式变量
+const dynamicColumns = ref<string[]>([])
+
+// 控制对话框显示的状态
+const isDialogVisible = ref(false)
+// 用于传递给对话框的番剧数据 (null 表示添加模式)
+const selectedBangumi = ref<BangumiItem | null>(null)
 
 // 获取番剧数据
 const fetchBangumiData = async () => {
@@ -81,13 +73,59 @@ const fetchBangumiData = async () => {
         const result = await window.electronAPI.getBangumi()
         if (result.success && result.data) {
             bangumiList.value = result.data
+            // 数据加载后，更新动态列
+            updateDynamicColumns()
         } else {
             ElMessage.error('获取数据失败')
         }
     } catch (error) {
-        ElMessage.error('获取数据出错：' + error)
+        ElMessage.error('获取数据出错：' + String(error))
     } finally {
     }
+}
+
+// 根据 bangumiList 更新 dynamicColumns
+const updateDynamicColumns = () => {
+  const allLabels = new Set<string>();
+  bangumiList.value.forEach(item => {
+    item.labels.forEach(label => {
+      if (label.label) { // 确保 label 名不为空
+        allLabels.add(label.label);
+      }
+    });
+  });
+
+  // 定义优先排序的列名
+  const preferredOrder = ['时间', '类型'];
+
+  // 自定义排序逻辑
+  dynamicColumns.value = Array.from(allLabels).sort((a, b) => {
+    const indexA = preferredOrder.indexOf(a);
+    const indexB = preferredOrder.indexOf(b);
+
+    if (indexA !== -1 && indexB !== -1) {
+      // 两者都在优先列表，按优先列表顺序
+      return indexA - indexB;
+    } else if (indexA !== -1) {
+      // 只有 A 在优先列表，A 排前面
+      return -1;
+    } else if (indexB !== -1) {
+      // 只有 B 在优先列表，B 排前面
+      return 1;
+    } else {
+      // 两者都不在优先列表，按字母顺序
+      return a.localeCompare(b);
+    }
+  });
+
+  console.log('动态列已更新 (自定义排序):', dynamicColumns.value);
+};
+
+// 辅助函数：获取指定 label 的值
+const getLabelValue = (labels: BangumiItem['labels'], labelKey: string): string => {
+    const foundLabel = labels.find(l => l.label === labelKey);
+    // 如果找到label，返回值；如果label没有值但label名匹配（例如 '12话' 这种），返回label名；否则返回 '-'
+    return foundLabel ? (foundLabel.value || foundLabel.label || '-') : '-';
 }
 
 // 按时间排序处理函数
@@ -154,6 +192,29 @@ const handleSortByTime = async () => {
     console.error('调用 updateBangumiOrder 时出错:', error);
     ElMessage.error(`调用排序 API 时出错: ${error.message}`);
   }
+}
+
+// 处理添加按钮点击事件
+const handleAddBangumi = () => {
+  selectedBangumi.value = null // 设置为 null 进入添加模式
+  isDialogVisible.value = true // 打开对话框
+}
+
+// 处理保存成功事件 (添加或编辑后)
+const handleSaveSuccess = (savedBangumi: BangumiItem) => {
+  console.log('保存成功，准备刷新列表...', savedBangumi);
+  // 简单刷新整个列表
+  fetchBangumiData();
+  // 也可以根据 savedBangumi.id 判断是添加还是更新，进行局部更新
+  // if (selectedBangumi.value) { // 编辑模式
+  //   const index = bangumiList.value.findIndex(item => item.id === savedBangumi.id);
+  //   if (index !== -1) {
+  //     bangumiList.value[index] = savedBangumi;
+  //   }
+  // } else { // 添加模式
+  //   bangumiList.value.unshift(savedBangumi); // 添加到列表开头
+  // }
+  isDialogVisible.value = false; // 关闭对话框
 }
 
 onMounted(() => {
@@ -260,5 +321,10 @@ onMounted(() => {
 
 :deep(.el-table__body-wrapper) {
     position: static;
+}
+
+/* 可以为动态列添加通用样式 */
+:deep(.el-table__row span) { /* 示例：稍微调整字体大小 */
+  font-size: 0.9em;
 }
 </style>
