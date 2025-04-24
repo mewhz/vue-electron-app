@@ -12,6 +12,9 @@
     <el-button type="warning" :icon="Plus" @click="handleAdd">
       添加番剧
     </el-button>
+    <el-button type="info" :icon="Sort" @click="handleSortByTime">
+      按时间排序
+    </el-button>
     <el-progress 
       v-if="isDownloading"
       :percentage="downloadProgress"
@@ -24,7 +27,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Refresh, Switch, Download, Plus } from '@element-plus/icons-vue'
+import { Refresh, Switch, Download, Plus, Sort } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -33,8 +36,8 @@ const isDownloading = ref(false)
 const downloadProgress = ref(0)
 const isExporting = ref(false)
 
-// 定义 emit，以便通知父组件触发添加操作
-const emit = defineEmits(['add'])
+// 定义 emit，以便通知父组件触发添加和排序操作
+const emit = defineEmits(['add', 'sort-by-time'])
 
 // 计算当前路径对应的切换按钮文本和目标路径
 const { switchButtonText, targetPath } = computed(() => {
@@ -117,6 +120,11 @@ const handleAdd = () => {
   // 具体的添加逻辑（如打开对话框）应该由父组件监听 @add 事件并处理
 };
 
+// 按时间排序
+const handleSortByTime = () => {
+  emit('sort-by-time')
+}
+
 // 组件卸载时清理监听器
 onUnmounted(() => {
   window.electronAPI.removeDownloadProgress()
@@ -129,10 +137,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .download-progress {
   flex: 1;
   max-width: 200px;
+  margin-left: auto;
 }
 </style> 

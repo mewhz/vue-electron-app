@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getConfigFilePath: () => ipcRenderer.invoke('get-config-file-path'),
     // 新增：导出 Bangumi 数据为 JSON
     exportBangumiJson: () => ipcRenderer.invoke('export-bangumi-json'),
+    // 新增：更新番剧排序
+    updateBangumiOrder: (sortedIds) => ipcRenderer.invoke('update-bangumi-order', sortedIds),
     // 添加进度监听
     onDownloadProgress: (callback) => {
         // 移除之前的监听器

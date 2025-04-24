@@ -26,6 +26,7 @@ declare global {
       downloadBangumiData: () => Promise<ApiResponse>,
       saveBangumi: (data: BangumiItem) => Promise<ApiResponse>,
       addBangumi: (data: BangumiItem) => Promise<ApiResponse>,
+      updateBangumiOrder: (sortedIds: number[]) => Promise<ApiResponse>,
       onDownloadProgress: (callback: (progress: number) => void) => void,
       removeDownloadProgress: () => void,
       exportBangumiJson: () => Promise<ApiResponse>,

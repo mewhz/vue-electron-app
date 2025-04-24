@@ -32,16 +32,32 @@ function getDb() {
             console.log('开始同步确保番剧表结构 (使用 id 作为主键)...');
             dbInstance.exec(`
                 CREATE TABLE IF NOT EXISTS bangumi (
-                    id INTEGER PRIMARY KEY,  -- 使用 API 返回的 ID 作为主键
-                    name TEXT,               -- 名称不再要求唯一
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
                     nameCN TEXT,
                     summary TEXT,
                     cover TEXT,
                     url TEXT,
                     labels TEXT
+                    -- sort_order 列将在下面通过 ALTER TABLE 添加（如果不存在）
                 );
             `);
-            console.log('番剧表结构同步确保完成。');
+            console.log('基础番剧表结构同步确保完成。');
+
+            // 检查并添加 sort_order 列 (简单迁移)
+            const columns = dbInstance.prepare("PRAGMA table_info(bangumi)").all();
+            const hasSortOrder = columns.some(col => col.name === 'sort_order');
+
+            if (!hasSortOrder) {
+                console.log('检测到 bangumi 表缺少 sort_order 列，正在添加...');
+                dbInstance.exec('ALTER TABLE bangumi ADD COLUMN sort_order INTEGER');
+                console.log('sort_order 列已添加。');
+                // 可选：为现有数据设置初始 sort_order 值，例如按 id
+                 // dbInstance.exec('UPDATE bangumi SET sort_order = id WHERE sort_order IS NULL');
+                 // console.log('已为现有数据设置初始 sort_order 值 (等于 id)。');
+            } else {
+                console.log('sort_order 列已存在。');
+            }
 
         } catch (error) {
             console.error('同步打开或初始化数据库失败:', error);
@@ -71,16 +87,17 @@ function closeDb() {
 // --- CRUD 函数 --- //
 
 /**
- * 从数据库获取所有番剧数据。
+ * 从数据库获取所有番剧数据，按 sort_order 排序。
  * !! 同步操作，可能阻塞主进程 !!
  * @returns {Array<Object>} 番剧数据列表，包含解析后的 labels
  * @throws {Error} 如果查询失败
  */
 function getAllBangumi() {
-    console.log('尝试同步获取所有番剧数据...');
+    console.log('尝试同步获取所有番剧数据 (按 sort_order 排序)...');
     try {
         const db = getDb();
-        const stmt = db.prepare('SELECT * FROM bangumi');
+        // 按 sort_order 升序排序，NULLS LAST 将没有顺序的值排在最后
+        const stmt = db.prepare('SELECT * FROM bangumi ORDER BY sort_order ASC NULLS LAST, id ASC');
         const rows = stmt.all();
         console.log(`同步查询到 ${rows.length} 条番剧数据。`);
         const data = rows.map(row => ({
@@ -252,6 +269,51 @@ function insertBangumi(item) {
     }
 }
 
+/**
+ * 批量更新番剧的排序顺序。
+ * 使用事务处理。
+ * !! 同步操作，可能阻塞主进程 !!
+ * @param {Array<number>} sortedIds - 按新顺序排列的番剧 ID 数组。
+ * @returns {{success: boolean}} 操作结果
+ * @throws {Error} 如果事务执行失败
+ */
+function updateBangumiOrder(sortedIds) {
+    if (!Array.isArray(sortedIds)) {
+        throw new Error('更新排序失败：输入必须是 ID 数组。');
+    }
+    console.log(`尝试同步更新 ${sortedIds.length} 条番剧的排序顺序...`);
+    const db = getDb();
+    db.exec('BEGIN TRANSACTION');
+    try {
+        const stmt = db.prepare(
+            `UPDATE bangumi SET sort_order = ? WHERE id = ?`
+        );
+        for (let i = 0; i < sortedIds.length; i++) {
+            const id = sortedIds[i];
+            const sortOrder = i; // 使用数组索引作为排序值 (0-based)
+            try {
+                const info = stmt.run(sortOrder, id);
+                if (info.changes === 0) {
+                     // 可以选择记录警告，如果某个 ID 未找到
+                     console.warn(`更新排序：未找到 ID 为 ${id} 的番剧，可能已被删除。`);
+                }
+            } catch (runError) {
+                // 如果单个更新失败，也应该回滚
+                console.error(`更新番剧 (ID: ${id}) 的 sort_order 失败:`, runError);
+                throw runError; // 抛出错误以触发回滚
+            }
+        }
+        db.exec('COMMIT');
+        console.log(`成功同步更新 ${sortedIds.length} 条番剧的排序顺序。`);
+        return { success: true };
+    } catch (txError) {
+        console.error('同步事务执行失败 (更新番剧排序):', txError);
+        try { db.exec('ROLLBACK'); } catch (rbError) { console.error('事务失败后回滚也失败:', rbError); }
+        // 抛出原始事务错误，可能需要包装一下提供更多上下文
+        throw new Error(`更新番剧排序事务失败: ${txError.message}`, { cause: txError });
+    }
+}
+
 module.exports = {
     getDb,
     closeDb,
@@ -260,4 +322,5 @@ module.exports = {
     insertBangumiBatch,
     updateBangumi,
     insertBangumi,
+    updateBangumiOrder
 }; 

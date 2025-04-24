@@ -3,6 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const { readBangumiData, downloadBangumiData, saveBangumiData, addBangumiData } = require('./bangumiManager')
 const { getConfig, getConfigFilePath } = require('./configManager')
+const db = require('./database')
 
 function setupIPC() {
     // 获取番剧列表
@@ -63,6 +64,19 @@ function setupIPC() {
         }
     })
 
+    // 新增：处理更新番剧排序
+    ipcMain.handle('update-bangumi-order', (_, sortedIds) => {
+        console.log('接收到 update-bangumi-order 请求')
+        try {
+            const result = db.updateBangumiOrder(sortedIds) // 调用数据库函数
+            console.log('番剧排序更新成功')
+            return { success: true, data: result } // 返回成功状态
+        } catch (error) {
+            console.error('更新番剧排序失败:', error)
+            return { success: false, error: error.message } // 返回失败状态和错误信息
+        }
+    })
+
     // 获取配置文件的路径
     ipcMain.handle('get-config-file-path', () => {
         console.log('IPC: 收到 get-config-file-path 请求')
@@ -81,15 +95,22 @@ function setupIPC() {
         console.log('IPC: 收到 export-bangumi-json 请求')
         try {
             // 1. 获取当前番剧数据 (同步)
-            const bangumiResult = readBangumiData()
+            const bangumiResult = readBangumiData() // readBangumiData 内部调用 getAllBangumi，已包含 sort_order
             if (!bangumiResult.success) {
                 console.error('导出失败：无法读取番剧数据。', bangumiResult.error)
                 return { success: false, error: `无法读取番剧数据: ${bangumiResult.error}` }
             }
-            const bangumiData = bangumiResult.data
+            let bangumiData = bangumiResult.data
             console.log(`准备导出 ${bangumiData.length} 条番剧数据...`)
 
-            // 2. 打开文件保存对话框
+            // 2. 移除 id 和 sort_order 字段
+            const dataToExport = bangumiData.map(item => {
+                const { id, sort_order, ...rest } = item; // 使用对象解构移除字段
+                return rest; // 返回不包含 id 和 sort_order 的对象
+            });
+            console.log('已移除导出数据中的 id 和 sort_order 字段。');
+
+            // 3. 打开文件保存对话框
             const { canceled, filePath } = await dialog.showSaveDialog({
                 title: '导出番剧数据为 JSON',
                 defaultPath: `bangumi_export_${Date.now()}.json`,
@@ -99,7 +120,7 @@ function setupIPC() {
                 ]
             })
 
-            // 3. 处理用户选择
+            // 4. 处理用户选择
             if (canceled) {
                 console.log('用户取消了导出操作。')
                 return { success: false, cancelled: true }
@@ -112,10 +133,10 @@ function setupIPC() {
 
             console.log(`用户选择导出路径: ${filePath}`)
 
-            // 4. 写入 JSON 文件 (同步)
+            // 5. 写入 JSON 文件 (同步)
             try {
-                // 使用 JSON.stringify 将数据转换为格式化的 JSON 字符串 (null, 2 用于美化输出)
-                const jsonData = JSON.stringify(bangumiData, null, 2)
+                // 使用 JSON.stringify 将处理后的数据转换为格式化的 JSON 字符串
+                const jsonData = JSON.stringify(dataToExport, null, 2)
                 fs.writeFileSync(filePath, jsonData, 'utf8')
                 console.log('成功将数据写入 JSON 文件。')
                 return { success: true }

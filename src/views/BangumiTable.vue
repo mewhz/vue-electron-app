@@ -1,6 +1,6 @@
 <template>
     <div class="bangumi-container">
-        <BangumiToolbar />
+        <BangumiToolbar @sort-by-time="handleSortByTime" />
         <el-table :data="bangumiList" style="width: 100%" stripe border>
             <!-- 中文标题列 -->
             <el-table-column label="中文标题" min-width="150">
@@ -88,6 +88,72 @@ const fetchBangumiData = async () => {
         ElMessage.error('获取数据出错：' + error)
     } finally {
     }
+}
+
+// 按时间排序处理函数
+const handleSortByTime = async () => {
+  // 1. 前端排序逻辑 (保持不变)
+  bangumiList.value.sort((a, b) => {
+    const timeLabelA = a.labels.find(l => l.label === '时间')?.value
+    const timeLabelB = b.labels.find(l => l.label === '时间')?.value
+
+    const parseDate = (dateStr: string | undefined): number => {
+      if (!dateStr) return 0
+      let match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+      if (match) {
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3])).getTime()
+      }
+      match = dateStr.match(/^(\d{4})-(\d{2})$/)
+      if (match) {
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, 1).getTime()
+      }
+      const timestamp = Date.parse(dateStr)
+      if (!isNaN(timestamp)) {
+        return timestamp
+      }
+      return 0
+    }
+
+    const timeA = parseDate(timeLabelA)
+    const timeB = parseDate(timeLabelB)
+
+    if (timeA === 0 && timeB === 0) {
+      // 如果都没有有效时间，则按 ID 升序排列（或其他稳定排序）
+      return (a.id ?? 0) - (b.id ?? 0);
+    }
+    if (timeA === 0) return 1
+    if (timeB === 0) return -1
+    return timeB - timeA // 降序
+  });
+
+  // 2. 提取排序后的 ID 列表
+  // 确保 ID 存在且为数字
+  const sortedIds = bangumiList.value
+    .map(item => item.id)
+    .filter((id): id is number => id !== undefined && id !== null);
+
+  if (sortedIds.length !== bangumiList.value.length) {
+    console.warn('部分番剧缺少 ID，无法为所有项更新排序顺序。');
+    // 可以选择仍然尝试更新包含有效 ID 的项，或者提示错误
+    // 这里我们继续尝试更新
+  }
+
+  // 3. 调用后端 API 更新排序
+  try {
+    console.log('尝试更新数据库中的排序顺序...', sortedIds);
+    const result = await window.electronAPI.updateBangumiOrder(sortedIds);
+    if (result.success) {
+      ElMessage.success('已按时间排序并更新数据库顺序');
+    } else {
+      console.error('更新数据库排序失败:', result.error);
+      ElMessage.error(`更新数据库排序失败: ${result.error || '未知错误'}`);
+      // 可选：如果后端更新失败，是否回滚前端排序？
+      // 目前不回滚，前端仍然显示排序后的结果
+    }
+  } catch (error: any) {
+    console.error('调用 updateBangumiOrder 时出错:', error);
+    ElMessage.error(`调用排序 API 时出错: ${error.message}`);
+  }
 }
 
 onMounted(() => {
