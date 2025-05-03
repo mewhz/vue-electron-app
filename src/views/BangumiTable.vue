@@ -50,6 +50,9 @@
             :bangumi="selectedBangumi" 
             @save-success="handleSaveSuccess"
         />
+        
+        <!-- 添加返回顶部按钮 -->
+        <el-backtop :right="30" :bottom="30" />
     </div>
 </template>
 
@@ -335,5 +338,13 @@ onMounted(() => {
 /* 可以为动态列添加通用样式 */
 :deep(.el-table__row span) { /* 示例：稍微调整字体大小 */
   font-size: 0.9em;
+}
+
+/* 可选：自定义返回顶部按钮样式 */
+:deep(.el-backtop) {
+  /* 可以根据需要调整大小、颜色等 */
+  --el-backtop-bg-color: #409EFF;
+  --el-backtop-text-color: white;
+  --el-backtop-hover-bg-color: #337ecc;
 }
 </style>

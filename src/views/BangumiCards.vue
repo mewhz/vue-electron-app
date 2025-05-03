@@ -23,6 +23,9 @@
       :bangumi="currentBangumi"
       @save-success="handleSaveSuccess"
     />
+    
+    <!-- 添加返回顶部按钮 -->
+    <el-backtop :right="30" :bottom="30" />
   </div>
 </template>
 
@@ -160,4 +163,11 @@ const handleSortByTime = async () => {
   /* margin-right: 0 !important; */
 }
 
+/* 可选：自定义返回顶部按钮样式 */
+:deep(.el-backtop) {
+  /* 可以根据需要调整大小、颜色等 */
+  --el-backtop-bg-color: #409EFF;
+  --el-backtop-text-color: white;
+  --el-backtop-hover-bg-color: #337ecc;
+}
 </style>
